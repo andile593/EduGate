@@ -1,13 +1,4 @@
-import { Query } from 'mongoose';
-
-interface QueryString {
-    keyword?: string;
-    page?: string;
-    limit?: string;
-    [key: string]: any;
-}
-
-function search(query: Query<any[], any>, queryString: QueryString): Query<any[], any> {
+function search(query, queryString) {
     const keyword = queryString.keyword ? {
         name: {
             $regex: queryString.keyword,
@@ -19,7 +10,7 @@ function search(query: Query<any[], any>, queryString: QueryString): Query<any[]
     return query;
 }
 
-function filter(query: Query<any[], any>, queryString: QueryString): Query<any[], any> {
+function filter(query, queryString) {
     const queryCopy = { ...queryString };
 
     // fields to remove for category
@@ -34,12 +25,16 @@ function filter(query: Query<any[], any>, queryString: QueryString): Query<any[]
     return query;
 }
 
-function pagination(query: Query<any[], any>, queryString: QueryString, resultPerPage: number): Query<any[], any> {
+function pagination(query, queryString, resultPerPage) {
     const currentPage = Number(queryString.page) || 1;
-    const skipProducts = resultPerPage * (currentPage - 1);
+    const skipSchools = resultPerPage * (currentPage - 1);
 
-    query = query.limit(resultPerPage).skip(skipProducts);
+    query = query.limit(resultPerPage).skip(skipSchools);
     return query;
 }
 
-export { search, filter, pagination };
+module.exports = {
+    search,
+    filter,
+    pagination
+};
