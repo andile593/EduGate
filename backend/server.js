@@ -1,10 +1,12 @@
 require('dotenv').config()
 
-import express from "express";
-import cors from "cors";
+const express = require("express")
+const cors = require("cors")
+const mongoose = require('mongoose')
 
-import schoolRoutes from './routes/schoolRoutes';
-import applicationRoutes from './routes/applicationRoutes';
+
+const schoolRoutes = require('./routes/schoolRoutes')
+const applicationRoutes = require('./routes/applicationRoutes')
 
 const app = express();
 
@@ -16,7 +18,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/', schoolRoutes)
 app.use('/', applicationRoutes)
 
-mongoose.connect(process.env.MONGO_URL)
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
         console.log('Connected to MongoDB')
         app.listen(process.env.PORT, () => {
