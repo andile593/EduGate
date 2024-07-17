@@ -1,9 +1,9 @@
 const express = require('express');
-const { registerStudent } = require('../controllers/applicationController')
-const { isAuthenticatedUser } = require('../middlewares/auth');
+const { createApplication } = require('../controllers/applicationController')
+const { isAuthenticatedUser } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.route('/new-student').get(isAuthenticatedUser, registerStudent)
+router.route('/new-student').get(isAuthenticatedUser, createApplication)
 
-export default router;
+module.exports = router;

@@ -1,6 +1,6 @@
 const express = require('express');
 const { getAllSchools, getSchoolDetails, updateSchool, deleteSchool, createSchool, getAdminSchools, getSchools } = require('../controllers/schoolsController');
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
+const { isAuthenticatedUser, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 

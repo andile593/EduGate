@@ -2,82 +2,90 @@ const mongoose = require('mongoose')
 const File = require('./fileModel')
 
 const applicationSchema = new mongoose.Schema({
-    firstName: {
-        type: String,
-        required: true
+    personalInfo: {
+        firstName: {
+            type: String,
+            required: true
+        },
+        lastName: {
+            type: String,
+            required: true
+        },
+        dateOfBirth: {
+            type: Date,
+            required: true,
+            trim: true
+        },
+        gender: {
+            type: String,
+            required: true,
+        },
+        address: {
+            type: String,
+            required: true,
+        },
+        city: {
+            type: String,
+            required: true
+        },
+        province: {
+            type: String,
+            required: true
+        },
+        country: {
+            type: String,
+            required: true
+        },
+        postalCode: {
+            type: Number,
+            required: true
+        },
     },
-    lastName: {
-        type: String,
-        required: true
+    contactInfo : {
+        emailAdress: {
+            type: String,
+            required: true
+        },
+        phoneNumber: {
+            type: Number,
+            required: true
+        },
+        emergencyContactName: {
+            type: String,
+            required: true
+        },
+        emergencyPhoneNumber: {
+            type: Number,
+            required: true
+        },
     },
-    dateOfBirth: {
-        type: Date,
-        required: true,
-        trim: true
+    eduBackground: {
+        previousSchoolName: {
+            type: String,
+            required: true
+        },
+        previousSchoolAddress: {
+            type: String,
+            required: true
+        },
+        yearOfGraduation: {
+            type: Number,
+            required: true
+        },
     },
-    gender: {
-        type: String,
-        required: true,
-    },
-    address: {
-        type: String,
-        required: true,
-    },
-    city: {
-        type: String,
-        required: true
-    },
-    province: {
-        type: String,
-        required: true
-    },
-    country: {
-        type: String,
-        required: true
-    },
-    postalCode: {
-        type: Number,
-        required: true
-    },
-    emailAdress: {
-        type: String,
-        required: true
-    },
-    phoneNumber: {
-        type: Number,
-        required: true
-    },
-    emergencyContactName: {
-        type: String,
-        required: true
-    },
-    emergencyPhoneNumber: {
-        type: Number,
-        required: true
-    },
-    previousSchoolName: {
-        type: String,
-        required: true
-    },
-    previousSchoolAddress: {
-        type: String,
-        required: true
-    },
-    yearOfGraduation: {
-        type: Number,
-        required: true
-    },
-    grade: {
-        type: Number,
-        required: true
-    },
-    year: {
-        type: Number,
-        required: true
-    },
-    acedemicAchievements: {
-        type: String,
-        required: true
+    academicInfo: {
+        grade: {
+            type: Number,
+            required: true
+        },
+        year: {
+            type: Number,
+            required: true
+        },
+        acedemicAchievements: {
+            type: String,
+            required: true
+        },
     },
     extraCurricularActivities: {
         type: String,

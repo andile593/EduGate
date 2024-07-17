@@ -1,6 +1,6 @@
 const SearchFeatures = require('../utils/searchFeatures');
 const ErrorHandler = require('../utils/errorHandler');
-const asyncErrorHandler = require('../middlewares/asyncErrorHandler');
+const asyncErrorHandler = require('../middleware/asyncErrorHandler');
 const School = require('../models/schoolModel')
 
 
