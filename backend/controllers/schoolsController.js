@@ -85,58 +85,8 @@ exports.updateSchool = asyncErrorHandler(async (req, res, next) => {
         return next(new ErrorHandler('School Not Found', 404))
     }
 
-    if (req.body.images !== undefined) {
-        let images = []
-
-        typeof req.body.images === 'string' ? images.push(req.body.images) : images = req.body.images
-
-        await Promise.all(school.images.map(image => admin.storage().bucket().file(image.public_id).delete()));
-
-        const imagesLink = [];
-
-        for (let i = 0; i < images.length; i++) {
-            const file = admin.storage().bucket().file(`schools/${Date.now()}_${i}`);
-            await file.save(images[i], {
-                contentType: 'image/jpeg',
-            });
-
-            const url = `https://storage.googleapis.com/${file.bucket.name}/${file.name}`;
-
-            imagesLink.push({
-                public_id: file.name,
-                url: url,
-            });
-        }
-
-        req.body.images = imagesLink;
-    }
-
-    if (req.body.logo.length > 0) {
-        await admin.storage().bucket().file(school.schoolbrand.logo.public_id).delete();
-
-        const file = admin.storage().bucket().file(`schoolbrands/${Date.now()}_logo`);
-        await file.save(req.body.logo, {
-            contentType: 'image/jpeg',
-        });
-
-        const schoolLogoUrl = `https://storage.googleapis.com/${file.bucket.name}/${file.name}`;
-
-        req.body.schoolbrand = {
-            name: req.body.schoolname,
-            logo: {
-                public_id: file.name,
-                url: schoolLogoUrl
-            }
-        };
-    }
-
-    let specs = [];
-    req.body.details.forEach((s) => {
-        specs.push(JSON.parse(s))
-    });
-    req.body.details = specs;
-    req.body.user = req.user.id;
-
+    //implement contional logic edits to the school object 
+    
     school = await School.findByIdAndUpdate(req.params.id, req.body, {
         new: true,
         runValidators: true,
