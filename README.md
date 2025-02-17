@@ -1,6 +1,8 @@
 # EduGate
 ![Untitled design](https://github.com/user-attachments/assets/f8a0ff0a-bb41-4d3b-8d1a-32d455b16300)
 
+Deisgn Link: https://www.figma.com/design/dZ9uRrOkrzHCpWMDdbbrTM/EduGate?m=auto&t=IX2kofvY8ML0taXj-1
+
 ## About
 About
 This project is a web-based school registration application designed for students to apply to a school online. The application consists of various features, schools appearing upon the relevant location you are situated in, register online, schools profiles.
