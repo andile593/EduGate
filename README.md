@@ -30,6 +30,7 @@ Students and parents searching for schools navigate a fragmented process — vis
 
 ## System Architecture
 
+```
 Client (Frontend — in progress)
 │
 ▼
@@ -43,7 +44,7 @@ REST API (Node.js + Express)
 │
 ▼
 PostgreSQL Database
-
+```
 ---
 
 ## Key Features
