@@ -1,20 +1,16 @@
 const express = require('express');
-const { getAllSchools, getSchoolDetails, updateSchool, deleteSchool, createSchool, getAdminSchools, getSchools } = require('../controllers/schoolsController');
+const router = express.Router();
+const schoolController = require('../controllers/schoolController');
 const { isAuthenticatedUser, authorizeRoles } = require('../middleware/auth');
 
-const router = express.Router();
+router.get('/', schoolController.getSchools)
+router.get('/:id', schoolController.getSchoolById)
 
-router.route('/schools').get(getAllSchools);
-router.route('/schools/all').get(getSchools);
+router.post('/', isAuthenticatedUser, authorizeRoles('admin', 'school_admin'), schoolController.createSchool)
+router.put('/:id', isAuthenticatedUser, authorizeRoles('admin', 'school_admin'), schoolController.updateSchool)
+router.put('/admin/:id/verify', isAuthenticatedUser, authorizeRoles('admin'), schoolController.verifySchool)
 
-router.route('/admin/schools').get(isAuthenticatedUser, authorizeRoles("admin"), getAdminSchools);
-router.route('/admin/school/new').post(isAuthenticatedUser, authorizeRoles("admin"), createSchool);
-
-router.route('/admin/school/:id')
-    .put(isAuthenticatedUser, authorizeRoles("admin"), updateSchool)
-    .delete(isAuthenticatedUser, authorizeRoles("admin"), deleteSchool);
-
-router.route('/schools/:id').get(getSchoolDetails);
+router.delete('/:id', isAuthenticatedUser, authorizeRoles('admin'), schoolController.deleteSchool)
 
 
 module.exports = router;

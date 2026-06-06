@@ -22,12 +22,19 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        default: "user",
+        enum: ["student", "school_admin", "admin"],
+        default: "student"
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
     },
     createdAt: {
         type: Date,
         default: Date.now,
     },
+    verificationToken: String,
+    verificationTokenExpire: Date,
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 });

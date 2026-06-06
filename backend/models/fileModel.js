@@ -5,9 +5,13 @@ const fileSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  path: {
+  public_id: {
     type: String,
-    required: true,
+    required: true
+  },
+  url: {
+    type: String,
+    required: true
   },
   mimetype: {
     type: String,
@@ -16,6 +20,11 @@ const fileSchema = new mongoose.Schema({
   size: {
     type: Number,
     required: true,
+  },
+  uploadedBy: {
+    type: mongoose.Schema.ObjectId,
+    ref: "User",
+    required: true
   },
   uploadedAt: {
     type: Date,

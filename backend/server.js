@@ -3,11 +3,7 @@ require('dotenv').config()
 const express = require("express")
 const cors = require("cors")
 const mongoose = require('mongoose')
-
-
-const schoolRoutes = require('./routes/schoolRoutes')
-const applicationRoutes = require('./routes/applicationRoutes')
-
+const errorMiddleware = require('./middleware/errorMiddleware')
 const app = express();
 
 app.use(cors());
@@ -15,8 +11,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 
-app.use('/', schoolRoutes)
-app.use('/', applicationRoutes)
+app.use('/auth', require('./routes/authRoutes'))
+app.use('/schools', require('./routes/schoolRoutes'))
+app.use('/application', require('./routes/applicationRoutes'))
+
+app.use(errorMiddleware);
 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
@@ -29,5 +28,3 @@ mongoose.connect(process.env.MONGODB_URI)
         console.error('Error connecting to MongoDB:', error)
     })
 
-
-// app.use(errorMiddleware);
