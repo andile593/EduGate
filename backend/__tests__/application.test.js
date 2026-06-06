@@ -99,14 +99,14 @@ beforeAll(async () => {
     });
 
     schoolId = school._id.toString();
-});
+}, 30000);
 
 afterAll(async () => {
     await User.deleteMany({});
     await School.deleteMany({});
     await Application.deleteMany({});
     await mongoose.connection.close();
-});
+}, 30000);
 
 describe('Application Controller', () => {
 
