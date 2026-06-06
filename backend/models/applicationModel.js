@@ -2,6 +2,17 @@ const mongoose = require('mongoose')
 const File = require('./fileModel')
 
 const applicationSchema = new mongoose.Schema({
+
+    school: {
+        type: mongoose.Schema.ObjectId,
+        ref: "School",
+        required: true
+    },
+    user: {
+        type: mongoose.Schema.ObjectId,
+        ref: "User",
+        required: true
+    },
     personalInfo: {
         firstName: {
             type: String,
@@ -39,16 +50,6 @@ const applicationSchema = new mongoose.Schema({
         postalCode: {
             type: String,
             required: true
-        },
-        school: {
-            type: mongoose.Schema.ObjectId,
-            ref: "School",
-            required: true
-        },
-        user: {
-            type: mongoose.Schema.ObjectId,
-            ref: "User",
-            required: true
         }
     },
     contactInfo: {
@@ -84,18 +85,18 @@ const applicationSchema = new mongoose.Schema({
         },
     },
     academicInfo: {
-        grade: {
-            type: String,
-            required: true
+        grade: { 
+            type: String, 
+            required: true 
         },
-        year: {
-            type: Number,
-            required: true
+        year: { 
+            type: Number, 
+            required: true 
         },
-        acedemicAchievements: {
-            type: String,
-            required: true
-        },
+        academicAchievements: { 
+            type: String, 
+            required: true 
+        }  
     },
     extraCurricularActivities: {
         type: String,

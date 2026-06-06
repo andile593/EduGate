@@ -54,13 +54,13 @@ beforeAll(async () => {
         .post('/auth/login')
         .send({ email: 'student@test.com', password: 'password123' });
     studentToken = studentLogin.body.token;
-});
+}, 30000);
 
 afterAll(async () => {
     await User.deleteMany({});
     await School.deleteMany({});
     await mongoose.connection.close();
-});
+}, 30000);
 
 describe('School Controller', () => {
 

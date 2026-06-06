@@ -1,16 +1,16 @@
 const request = require('supertest');
 const app = require('../app');
 const mongoose = require('mongoose');
-const User = require('../backend/models/userModel');
+const User = require('../models/userModel');
 
 beforeAll(async () => {
     await mongoose.connect(process.env.MONGO_TEST_URI);
-});
+}, 30000);
 
 afterAll(async () => {
     await User.deleteMany({});
     await mongoose.connection.close();
-});
+}, 30000);
 
 afterEach(async () => {
     await User.deleteMany({});
@@ -23,7 +23,7 @@ describe('Auth Controller', () => {
 
         it('should register a new student successfully', async () => {
             const res = await request(app)
-                .post(' /auth/register')
+                .post('/auth/register')
                 .send({
                     name: 'Test Student',
                     email: 'student@test.com',
