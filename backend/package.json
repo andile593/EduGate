@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "express": "^4.19.2",
@@ -13,23 +14,23 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "server.js",
-"scripts": {
+  "scripts": {
     "test": "NODE_ENV=test jest --rootDir=. --forceExit --detectOpenHandles",
     "test:watch": "jest --watch",
     "start": "node server.js"
-},
-"jest": {
+  },
+  "jest": {
     "roots": [
-        "<rootDir>"
+      "<rootDir>"
     ],
     "testMatch": [
-        "**/__tests__/**/*.test.js"
+      "**/__tests__/**/*.test.js"
     ],
     "testEnvironment": "node",
     "setupFiles": [
-        "<rootDir>/jest.setup.js"
+      "<rootDir>/jest.setup.js"
     ]
-},
+  },
   "author": "",
   "license": "ISC",
   "description": "",
