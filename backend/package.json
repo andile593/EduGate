@@ -24,7 +24,7 @@
     ],
     "testEnvironment": "node",
     "setupFiles": [
-      "dotenv/config"
+      "<rootDir>/jest.setup.js"
     ]
   },
   "author": "",
