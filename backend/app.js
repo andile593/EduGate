@@ -8,9 +8,11 @@ const helmet = require('helmet');
 
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(cookieParser());
 app.use(helmet());
+
 
 app.use(cors({
     origin: process.env.FRONTEND_URL,
