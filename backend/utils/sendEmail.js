@@ -1,38 +1,13 @@
-// const nodeMailer = require('nodemailer');
-const sgMail = require('@sendgrid/mail')
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const { Resend } = require('resend');
 
-const sendEmail = async (options) => {
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // const transporter = nodeMailer.createTransport({
-    //     host: process.env.SMTP_HOST,
-    //     port: process.env.SMTP_PORT,
-    //     service: process.env.SMTP_SERVICE,
-    //     auth: {
-    //         user: process.env.SMTP_MAIL,
-    //         pass: process.env.SMTP_PASSWORD,
-    //     },
-    // });
-
-    // const mailOptions = {
-    //     from: process.env.SMTP_MAIL,
-    //     to: options.email,
-    //     subject: options.subject,
-    //     html: options.message,
-    // };
-
-    // await transporter.sendMail(mailOptions);
-
-    const msg = {
-        to: options.email,
-        from: process.env.SENDGRID_MAIL,
-        templateId: options.templateId,
-        dynamic_template_data: options.data,
-    }
-    sgMail.send(msg).then(() => {
-        console.log('Email Sent')
-    }).catch((error) => {
-        console.error(error)
+const sendEmail = async ({ to, subject, html }) => {
+    await resend.emails.send({
+        from: process.env.EMAIL_FROM,
+        to,
+        subject,
+        html
     });
 };
 

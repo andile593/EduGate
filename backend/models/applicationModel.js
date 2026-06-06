@@ -37,17 +37,27 @@ const applicationSchema = new mongoose.Schema({
             required: true
         },
         postalCode: {
-            type: Number,
+            type: String,
             required: true
         },
+        school: {
+            type: mongoose.Schema.ObjectId,
+            ref: "School",
+            required: true
+        },
+        user: {
+            type: mongoose.Schema.ObjectId,
+            ref: "User",
+            required: true
+        }
     },
-    contactInfo : {
-        emailAdress: {
+    contactInfo: {
+        emailAddress: {
             type: String,
             required: true
         },
         phoneNumber: {
-            type: Number,
+            type: String,
             required: true
         },
         emergencyContactName: {
@@ -55,7 +65,7 @@ const applicationSchema = new mongoose.Schema({
             required: true
         },
         emergencyPhoneNumber: {
-            type: Number,
+            type: String,
             required: true
         },
     },
@@ -75,7 +85,7 @@ const applicationSchema = new mongoose.Schema({
     },
     academicInfo: {
         grade: {
-            type: Number,
+            type: String,
             required: true
         },
         year: {
@@ -91,11 +101,29 @@ const applicationSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    status: {
+        type: String,
+        enum: ["draft", "submitted", "under_review", "approved", "rejected", "waitlisted"],
+        default: "draft"
+    },
+    statusHistory: [{
+        status: String,
+        changedAt: { type: Date, default: Date.now },
+        changedBy: { type: mongoose.Schema.ObjectId, ref: "User" },
+        note: String
+    }],
     documents: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'File',
     }],
+    submittedAt: {
+        type: Date
+    }
 
 })
+
+applicationSchema.index({ user: 1 });
+applicationSchema.index({ school: 1 });
+applicationSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Application', applicationSchema)
