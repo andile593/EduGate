@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../app');
 const mongoose = require('mongoose');
-const User = require('../models/userModel');
+const User = require('../backend/models/userModel');
 
 beforeAll(async () => {
     await mongoose.connect(process.env.MONGO_TEST_URI);
