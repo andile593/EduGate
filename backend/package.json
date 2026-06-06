@@ -13,20 +13,23 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "server.js",
-  "scripts": {
-    "test": "NODE_ENV=test jest --forceExit --detectOpenHandles",
+"scripts": {
+    "test": "NODE_ENV=test jest --rootDir=. --forceExit --detectOpenHandles",
     "test:watch": "jest --watch",
     "start": "node server.js"
-  },
-  "jest": {
+},
+"jest": {
+    "roots": [
+        "<rootDir>"
+    ],
     "testMatch": [
-      "**/__tests__/**/*.test.js"
+        "**/__tests__/**/*.test.js"
     ],
     "testEnvironment": "node",
     "setupFiles": [
-      "<rootDir>/jest.setup.js"
+        "<rootDir>/jest.setup.js"
     ]
-  },
+},
   "author": "",
   "license": "ISC",
   "description": "",
