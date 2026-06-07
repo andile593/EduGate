@@ -9,7 +9,6 @@ const sendToken = (user, statusCode, res) => {
             process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000)
     };
 
-    // Cookie for web, token in body for MAUI
     res.status(statusCode)
         .cookie('token', token, cookieOptions)
         .json({
