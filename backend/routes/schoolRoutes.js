@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const schoolController = require('../controllers/schoolController');
-const { isAuthenticatedUser, authorizeRoles } = require('../middleware/auth');
+const { isAuthenticatedUser, authorizeRoles } = require('../middleware/authMiddleware');
 
 router.get('/', schoolController.getSchools)
 router.get('/:id', schoolController.getSchoolById)

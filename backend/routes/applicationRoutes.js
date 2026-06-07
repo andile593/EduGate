@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const applicationController = require('../controllers/applicationController')
-const { isAuthenticatedUser, authorizeRoles } = require('../middleware/auth');
+const { isAuthenticatedUser, authorizeRoles } = require('../middleware/authMiddleware');
 
 
 router.get('/', isAuthenticatedUser, authorizeRoles('admin', 'school_admin', 'student'), applicationController.getApplications)
