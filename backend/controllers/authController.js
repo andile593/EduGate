@@ -261,14 +261,15 @@ exports.updatePassword = asyncErrorHandler(async (req, res, next) => {
 
 
 exports.getMyProfile = asyncErrorHandler(async (req, res, next) => {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select(
+        '-verificationToken -verificationTokenExpire -resetPasswordToken -resetPasswordExpire'
+    );
 
     res.status(200).json({
         success: true,
         user
     });
 });
-
 
 exports.updateProfile = asyncErrorHandler(async (req, res, next) => {
     const updates = {
