@@ -1,109 +1,232 @@
 # EduGate
-A backend API for a location-based school registration platform. EduGate replaces manual school application processes with a centralised digital system — allowing students to discover nearby schools, view school profiles, and apply online from a single platform.
+
+> Location-based school discovery and online registration for South Africa.
+
+**Status:** 🚧 In development. Sections marked *(planned)* are designed but not yet built. This README is the source of truth for the design; if the code disagrees, one of them is a bug.
 
 ---
 
-## The Problem
-Students and parents searching for schools navigate a fragmented process — visiting school websites individually, submitting paper applications, and having no visibility into their application status. EduGate consolidates school discovery and the registration process into one structured, accessible platform.
+## 1. Problem
 
----
+Parents and learners searching for schools deal with a fragmented process: visiting school websites one by one, submitting paper applications, and having no visibility into what happened afterwards.
 
-## What It Does
-- **Location-based school discovery** — Returns schools relevant to the user's location so students see options available to them
-- **School profiles** — Each school has a dedicated profile with information available for prospective applicants
-- **Online registration** — Students submit applications digitally through the platform, replacing paper-based processes
-- **Application tracking** — Applicants can track the status of their submitted applications
-- **Admin dashboard** — Administrators manage schools, applications, and platform data from a centralised view
-- **User authentication** — Secure account creation and login for students, schools, and administrators
+EduGate consolidates three things into one system:
 
----
+1. **Discovery:** find schools near you.
+2. **Application:** apply digitally with a structured, consistent form.
+3. **Tracking:** see where each application stands.
 
-## Tech Stack
-| Layer | Technology |
+## 2. Users and roles
+
+| Role | Who | Can do |
+|---|---|---|
+| **Applicant** | Learner or parent/guardian (the account holder) | Discover schools, create learner profiles, submit and track applications, upload documents |
+| **School** | School admissions staff | Manage their own school profile, review and decide on **their own** applications |
+| **Administrator** | Platform operator | Manage schools, verify school accounts, oversee users, view audit logs |
+
+**Design note:** Most applicants are minors, so the account holder is usually a guardian. The model separates `User` (who logs in) from `Learner` (who is being applied for). See POPIA, section 9.
+
+## 3. Scope
+
+**In scope (v1)**
+- Authentication and role-based authorization
+- School profiles with geolocation
+- Location-based search with filters and paging
+- Application lifecycle (state machine)
+- Document upload
+- Status-change notifications
+- Admin endpoints
+- Android client
+
+**Out of scope (v1)**
+- Payments (application fees)
+- Web admin dashboard (admin is API-only, tested via Swagger; Blazor dashboard comes later)
+- iOS client
+- Integration with provincial admission systems
+
+## 4. System context
+
+```mermaid
+flowchart LR
+    Client["Android client (.NET MAUI)"] -->|HTTPS / JSON| API["EduGate.Api (ASP.NET Core)"]
+    Swagger["Swagger / Admin tools"] -->|HTTPS / JSON| API
+    API --> DB[("SQL Server")]
+    API --> Blob[("Blob storage: documents")]
+    API --> Jobs["Background jobs"]
+    Jobs --> Push["Firebase Cloud Messaging"]
+    Jobs --> DB
+```
+
+## 5. Architecture
+
+Clean Architecture with dependencies pointing inward. The domain knows nothing about EF Core, HTTP, or SQL Server.
+
+```
+src/
+├── EduGate.Domain           # Entities, value objects, domain rules, state machine. No dependencies.
+├── EduGate.Application      # Use cases (CQRS handlers), validators, interfaces. Depends on Domain.
+├── EduGate.Infrastructure   # EF Core, Identity, blob storage, notifications. Depends on Application.
+└── EduGate.Api              # Controllers/endpoints, middleware, DI composition root.
+tests/
+├── EduGate.Domain.Tests         # Pure unit tests (state machine, invariants)
+├── EduGate.Application.Tests    # Handler tests with mocked ports
+└── EduGate.Api.IntegrationTests # Real SQL Server via Testcontainers
+```
+
+```mermaid
+flowchart TD
+    Api[EduGate.Api] --> Application[EduGate.Application]
+    Api --> Infrastructure[EduGate.Infrastructure]
+    Infrastructure --> Application
+    Application --> Domain[EduGate.Domain]
+```
+
+**Rule:** `Domain` and `Application` never reference `Infrastructure`. If a handler needs storage, it depends on an interface defined in `Application` and implemented in `Infrastructure`.
+
+## 6. Technology choices
+
+| Concern | Choice | Why |
+|---|---|---|
+| Runtime | .NET 8 (LTS) | Stable, widely used in enterprise |
+| API | ASP.NET Core Web API | Industry-standard .NET backend |
+| Database | SQL Server | Dominant in SA enterprise; native `geography` type |
+| ORM | EF Core + NetTopologySuite | Spatial queries via `IsWithinDistance` |
+| Auth | ASP.NET Identity + JWT + refresh tokens | Standard, with rotation and reuse detection |
+| Use cases | MediatR (CQRS) | One handler per use case, testable in isolation |
+| Validation | FluentValidation | Validation separated from domain logic |
+| Errors | ProblemDetails (RFC 7807) | Consistent error contract |
+| Logging | Serilog | Structured logs |
+| Tests | xUnit, FluentAssertions, Testcontainers | Real DB in integration tests |
+| Jobs | Hangfire *(planned)* | Notifications and retention cleanup |
+| Client | .NET MAUI (Android) *(planned)* | Same language end to end |
+| CI/CD | GitHub Actions, Docker *(planned)* | Build, test, and image on every PR |
+
+## 7. Domain model
+
+```mermaid
+erDiagram
+    USER ||--o{ LEARNER : "guardian of"
+    USER ||--o{ SCHOOL_STAFF : "is"
+    SCHOOL ||--o{ SCHOOL_STAFF : "employs"
+    SCHOOL ||--o{ SCHOOL_GRADE : "offers"
+    LEARNER ||--o{ APPLICATION : "subject of"
+    SCHOOL_GRADE ||--o{ APPLICATION : "applied to"
+    APPLICATION ||--o{ APPLICATION_STATUS_HISTORY : "records"
+    APPLICATION ||--o{ APPLICATION_DOCUMENT : "has"
+    USER ||--o{ REFRESH_TOKEN : "owns"
+    USER ||--o{ CONSENT_RECORD : "gives"
+```
+
+| Entity | Notes |
 |---|---|
-| Backend | Node.js, Express |
-| Database | PostgreSQL |
-| Authentication | JWT |
-| Frontend | In progress |
+| `User` | Identity account. Role: Applicant, School, Administrator |
+| `Learner` | Child or student being applied for. Owned by a guardian `User` |
+| `School` | Profile, contact details, `Location` (geography point), verification status |
+| `SchoolGrade` | A grade a school offers, with capacity and a `RowVersion` for concurrency |
+| `SchoolStaff` | Links a School-role `User` to exactly one `School` (tenant boundary) |
+| `Application` | Learner → SchoolGrade. Current status and submission data |
+| `ApplicationStatusHistory` | Append-only. Every transition: from, to, actor, timestamp, reason |
+| `ApplicationDocument` | Metadata for uploaded files (ID copy, report card). File lives in blob storage |
+| `RefreshToken` | Hashed token, family id, used/revoked flags (reuse detection) |
+| `ConsentRecord` | What was consented to, by whom, when, which policy version |
 
----
+## 8. Key design decisions
 
-## System Architecture
+**8.1 Application status is a state machine, enforced in the domain.**
+Invalid transitions are impossible, not merely validated at the API.
 
+```mermaid
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Submitted
+    Draft --> Withdrawn
+    Submitted --> UnderReview
+    Submitted --> Withdrawn
+    UnderReview --> Accepted
+    UnderReview --> Waitlisted
+    UnderReview --> Rejected
+    Waitlisted --> Accepted
+    Waitlisted --> Rejected
+    Waitlisted --> Withdrawn
+    Accepted --> Withdrawn
 ```
-Client (Frontend — in progress)
-│
-▼
-REST API (Node.js + Express)
-│
-├── Auth Service (JWT)
-├── School Discovery Service (location-based)
-├── School Profile Service
-├── Application & Registration Service
-└── Admin Dashboard Service
-│
-▼
-PostgreSQL Database
-```
----
 
-## Key Features
+Every transition writes an immutable row to `ApplicationStatusHistory` in the same transaction as the status change.
 
-### Location-Based School Discovery
-The API returns schools based on the user's location, surfacing relevant options without requiring manual searching across multiple sources.
+**8.2 Capacity is protected with optimistic concurrency.**
+`SchoolGrade` carries a `rowversion` column. Two staff members accepting the last seat simultaneously cannot both succeed; the loser gets a `409 Conflict` and retries against fresh state.
 
-### Online Registration
-Students apply to schools directly through the platform. Applications are structured and consistent, replacing uncoordinated paper or email-based submissions.
+**8.3 Location search uses SQL Server spatial types, not hand-rolled math.**
+`School.Location` is a `geography` point with a spatial index. Queries use `IsWithinDistance` and order by `Distance`. Results are paged and filterable by grade and radius.
 
-### Application Tracking
-Applicants have visibility into where their application stands at each stage of the process.
+**8.4 Tenant isolation is enforced by resource-based authorization, not just roles.**
+A `School` user can only access applications where `Application.SchoolGrade.SchoolId == currentUser.SchoolId`. Cross-school access returns `404`, not `403`, so resource existence is not leaked. This is covered by dedicated integration tests.
 
-### Role-Based Access
-| Role | Access |
+**8.5 Refresh-token rotation with reuse detection.**
+Each refresh issues a new token and marks the old one used. Presenting an already-used token revokes the entire token family.
+
+**8.6 CQRS via MediatR.**
+Each use case is a command or query with its own handler and validator. Controllers stay thin and contain no business logic.
+
+## 9. Security and POPIA
+
+EduGate stores personal information about **minors**. Compliance is a design requirement, not an afterthought.
+
+- **Consent:** explicit guardian consent captured and versioned in `ConsentRecord` before any learner data is stored.
+- **Minimisation:** collect only what a school needs to assess an application.
+- **Access control:** schools see only their own applicants; every read of a learner's documents is audit-logged.
+- **Retention:** application data and documents are deleted or anonymised after a defined retention period *(planned: background job)*.
+- **Data subject rights:** guardians can export and delete their learners' data *(planned)*.
+- **Storage:** documents in private blob storage, accessed via short-lived signed URLs; never publicly addressable.
+- **Transport and secrets:** HTTPS only; secrets via environment or a vault, never committed.
+
+## 10. API overview *(draft, will be refined)*
+
+| Area | Endpoints |
 |---|---|
-| Administrator | Full platform access, school management, user oversight |
-| School | Manage school profile, view and process incoming applications |
-| Student / Applicant | Discover schools, submit applications, track status |
+| Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout` |
+| Schools | `GET /schools?lat=&lng=&radiusKm=&grade=&page=`, `GET /schools/{id}`, `PUT /schools/{id}` |
+| Learners | `POST /learners`, `GET /learners`, `PUT /learners/{id}` |
+| Applications | `POST /applications`, `GET /applications/{id}`, `POST /applications/{id}/submit`, `POST /applications/{id}/withdraw` |
+| School review | `GET /school/applications`, `POST /school/applications/{id}/review`, `/accept`, `/waitlist`, `/reject` |
+| Documents | `POST /applications/{id}/documents`, `GET /applications/{id}/documents/{docId}` |
+| Admin | `GET /admin/users`, `POST /admin/schools/{id}/verify`, `GET /admin/audit-logs` |
 
----
+All errors return `ProblemDetails`. All list endpoints are paged.
 
-## Getting Started
+## 11. Testing strategy
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL
+- **Domain tests:** every valid and invalid state transition; capacity invariants.
+- **Application tests:** handlers with mocked ports.
+- **Integration tests:** full HTTP pipeline against a real SQL Server container, including auth, tenant isolation, spatial search, and concurrent-accept scenarios.
+- **CI gate:** build, test, and format check must pass before merge.
 
-### Installation
+## 12. Running locally *(to be completed once scaffolded)*
+
 ```bash
-# Clone the repository
-git clone https://github.com/andile593/EduGate.git
-cd EduGate
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env
-# Add your DATABASE_URL and JWT_SECRET
-
-# Run database migrations
-npm run migrate
-
-# Start development server
-npm run dev
+# prerequisites: .NET 8 SDK, Docker
+docker compose up -d        # SQL Server
+dotnet ef database update --project src/EduGate.Infrastructure --startup-project src/EduGate.Api
+dotnet run --project src/EduGate.Api
 ```
 
-### Production Build
-```bash
-npm run build
-npm start
-```
+## 13. Roadmap
 
----
+- [ ] Solution scaffold and CI
+- [ ] Identity, JWT, refresh-token rotation
+- [ ] School and grade management
+- [ ] Learner profiles and consent
+- [ ] Application state machine and history
+- [ ] Location search (spatial index)
+- [ ] Capacity and concurrency control
+- [ ] Document uploads
+- [ ] Notifications (background jobs)
+- [ ] Audit logging and retention
+- [ ] MAUI Android client
+- [ ] Azure deployment
+- [ ] Blazor admin dashboard
 
-## Roadmap
-- [ ] Frontend (React) — school discovery UI, registration forms, applicant dashboard
-- [ ] Application status notifications via email
-- [ ] School search and filtering by grade, type, and proximity
-- [ ] Document uploads for application submissions
-- [ ] Analytics dashboard — application volumes and trends by school
+## 14. Author
+
+Andile Mhlanga, Johannesburg, South Africa
+[GitHub](https://github.com/andile593) · [LinkedIn](https://www.linkedin.com/in/andile-mhlanga-370985316/)
