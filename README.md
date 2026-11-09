@@ -26,12 +26,14 @@ EduGate consolidates three things into one system:
 
 **Design note:** Most applicants are minors, so the account holder is usually a guardian. The model separates `User` (who logs in) from `Learner` (who is being applied for). See POPIA, section 9.
 
-## 3. Scope
+## 3. Scope 
 
 **In scope (v1)**
 - Authentication and role-based authorization
 - School profiles with geolocation
-- Location-based search with filters and paging
+- **Catchment (feeder zone) management:** schools define versioned geographic zones, approved by an administrator
+- Location-based search with filters and paging, flagging schools whose catchment contains the user
+- **Catchment assessment** at submission, with school verification of proof of residence
 - Application lifecycle (state machine)
 - Document upload
 - Status-change notifications
@@ -39,10 +41,9 @@ EduGate consolidates three things into one system:
 - Android client
 
 **Out of scope (v1)**
-- Payments (application fees)
-- Web admin dashboard (admin is API-only, tested via Swagger; Blazor dashboard comes later)
-- iOS client
-- Integration with provincial admission systems
+- Other admission criteria (siblings, alumni, feeder-school linkage, work address)
+- Automated placement or allocation (final decisions remain with schools and the department)
+- Payments, web admin dashboard, iOS client, integration with provincial admission systems
 
 ## 4. System context
 
@@ -57,9 +58,7 @@ flowchart LR
     Jobs --> DB
 ```
 
-## 5. Architecture
-
-Clean Architecture with dependencies pointing inward. The domain knows nothing about EF Core, HTTP, or SQL Server.
+## 5. Architecture 
 
 ```
 src/
@@ -81,7 +80,7 @@ flowchart TD
     Application --> Domain[EduGate.Domain]
 ```
 
-**Rule:** `Domain` and `Application` never reference `Infrastructure`. If a handler needs storage, it depends on an interface defined in `Application` and implemented in `Infrastructure`.
+**Rule:** `Application` never references `Infrastructure`. `Domain` has exactly one external dependency, **NetTopologySuite**, for geometry types. It contains no spatial *logic*: spatial evaluation is a port (`ICatchmentEvaluator`) implemented in Infrastructure against SQL Server, so discovery and assessment use the same engine.
 
 ## 6. Technology choices
 
@@ -115,6 +114,8 @@ erDiagram
     APPLICATION ||--o{ APPLICATION_DOCUMENT : "has"
     USER ||--o{ REFRESH_TOKEN : "owns"
     USER ||--o{ CONSENT_RECORD : "gives"
+    SCHOOL ||--o{ CATCHMENT_ZONE : "defines (versioned)"
+    APPLICATION }o--o| CATCHMENT_ZONE : "assessed against"
 ```
 
 | Entity | Notes |
@@ -129,6 +130,13 @@ erDiagram
 | `ApplicationDocument` | Metadata for uploaded files (ID copy, report card). File lives in blob storage |
 | `RefreshToken` | Hashed token, family id, used/revoked flags (reuse detection) |
 | `ConsentRecord` | What was consented to, by whom, when, which policy version |
+| `CatchmentZone` | `MultiPolygon` boundary (geography, SRID 4326), `Version`, `Status` (Draft, PendingApproval, Active, Retired), approver. At most one Active zone per school (filtered unique index) |
+| `Learner.Residence` | Owned value: address text, `Point` location, set by the guardian |
+| `Application.Assessment` | Immutable snapshot: `Result` (InCatchment, OutOfCatchment, NoZoneDefined), `ZoneId`, `AssessedAt` |
+| `Application.ResidenceProof` | Pending, Verified, Rejected. Set by school staff after reviewing the proof-of-residence document |
+
+
+**Priority rule:** an application has catchment priority only when `Assessment.Result == InCatchment` **and** `ResidenceProof == Verified`.
 
 ## 8. Key design decisions
 
@@ -157,7 +165,8 @@ Every transition writes an immutable row to `ApplicationStatusHistory` in the sa
 `SchoolGrade` carries a `rowversion` column. Two staff members accepting the last seat simultaneously cannot both succeed; the loser gets a `409 Conflict` and retries against fresh state.
 
 **8.3 Location search uses SQL Server spatial types, not hand-rolled math.**
-`School.Location` is a `geography` point with a spatial index. Queries use `IsWithinDistance` and order by `Distance`. Results are paged and filterable by grade and radius.
+`School.Location` is a `geography` point with a spatial index. Search returns schools within the radius **or** whose active catchment contains the user's point, each flagged `inCatchment`, ordered in-catchment first, then by distance. The search coordinates are never persisted.
+
 
 **8.4 Tenant isolation is enforced by resource-based authorization, not just roles.**
 A `School` user can only access applications where `Application.SchoolGrade.SchoolId == currentUser.SchoolId`. Cross-school access returns `404`, not `403`, so resource existence is not leaked. This is covered by dedicated integration tests.
@@ -167,6 +176,13 @@ Each refresh issues a new token and marks the old one used. Presenting an alread
 
 **8.6 CQRS via MediatR.**
 Each use case is a command or query with its own handler and validator. Controllers stay thin and contain no business logic.
+
+**8.7 Catchments are versioned, approved, and snapshotted.**
+- A zone is immutable once Active. Editing creates a new Draft version.
+- A school submits a zone; an administrator approves it. Approval retires the previous version atomically. A filtered unique index guarantees one Active zone per school.
+- Boundaries are validated on input: valid geometry (no self-intersection), inside South African bounds (catches swapped lat/lng), ring orientation normalised for SQL Server `geography`.
+- At submission, `ICatchmentEvaluator` assesses the learner's residence against the school's Active zone. The result and zone id are stored on the application and never recomputed.
+- Self-declared residence carries no priority until school staff verify proof of residence.
 
 ## 9. Security and POPIA
 
@@ -179,8 +195,11 @@ EduGate stores personal information about **minors**. Compliance is a design req
 - **Data subject rights:** guardians can export and delete their learners' data *(planned)*.
 - **Storage:** documents in private blob storage, accessed via short-lived signed URLs; never publicly addressable.
 - **Transport and secrets:** HTTPS only; secrets via environment or a vault, never committed.
+- **Residential address of a minor is high-risk data.** Stored only on the learner profile, visible only to schools the learner has applied to, and every read is audit-logged.
+- **Search is stateless.** Coordinates supplied to `GET /schools` are used for the query and never stored or logged.
+- **Proof of residence** is a document: private blob storage, signed URLs, access-logged.
 
-## 10. API overview *(draft, will be refined)*
+## 10. API overview 
 
 | Area | Endpoints |
 |---|---|
@@ -191,6 +210,11 @@ EduGate stores personal information about **minors**. Compliance is a design req
 | School review | `GET /school/applications`, `POST /school/applications/{id}/review`, `/accept`, `/waitlist`, `/reject` |
 | Documents | `POST /applications/{id}/documents`, `GET /applications/{id}/documents/{docId}` |
 | Admin | `GET /admin/users`, `POST /admin/schools/{id}/verify`, `GET /admin/audit-logs` |
+| Schools | `GET /schools?lat=&lng=&radiusKm=&grade=&page=` returns `distanceKm` and `inCatchment` per school |
+| Learners | `PUT /learners/{id}/residence` (address, lat, lng) |
+| Catchment (school) | `PUT /school/catchment` (GeoJSON, creates Draft), `POST /school/catchment/{id}/submit` |
+| Catchment (admin) | `POST /admin/catchments/{id}/approve`, `POST /admin/catchments/{id}/reject` |
+| School review | `GET /school/applications?priority=`, `POST /school/applications/{id}/residence/verify`, `/residence/reject` |
 
 All errors return `ProblemDetails`. All list endpoints are paged.
 
@@ -200,8 +224,15 @@ All errors return `ProblemDetails`. All list endpoints are paged.
 - **Application tests:** handlers with mocked ports.
 - **Integration tests:** full HTTP pipeline against a real SQL Server container, including auth, tenant isolation, spatial search, and concurrent-accept scenarios.
 - **CI gate:** build, test, and format check must pass before merge.
+- Point inside, outside, and on the boundary (document the behaviour)
+- Swapped lat/lng rejected; clockwise ring corrected; self-intersecting polygon rejected
+- Redrawing a zone does not change existing application assessments
+- School A cannot read or modify school B's zone
+- Two concurrent approvals produce exactly one Active zone
+- Priority requires both InCatchment and Verified residence
 
-## 12. Running locally *(to be completed once scaffolded)*
+
+## 12. Running locally 
 
 ```bash
 # prerequisites: .NET 8 SDK, Docker
@@ -215,6 +246,8 @@ dotnet run --project src/EduGate.Api
 - [ ] Solution scaffold and CI
 - [ ] Identity, JWT, refresh-token rotation
 - [ ] School and grade management
+- [ ] Catchment zones: versioning, validation, approval workflow
+- [ ] Catchment assessment at submission and residence verification
 - [ ] Learner profiles and consent
 - [ ] Application state machine and history
 - [ ] Location search (spatial index)
